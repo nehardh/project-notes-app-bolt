@@ -42,7 +42,7 @@ A modern full-stack personal productivity app featuring sticky notes, to-do list
 
 ---
 
-## 📦 Getting Started
+##📦 Getting Started
 
 ### 1. Clone the Repository
 
@@ -50,12 +50,5 @@ A modern full-stack personal productivity app featuring sticky notes, to-do list
 git clone https://github.com/yourusername/notes-app.git
 cd notes-app
 
-### 2️⃣ Setup Environment Variables
+---
 
-Inside the `/backend` folder, create a `.env` file with the following contents:
-
-```env
-PORT=5000
-DATABASE_URL=mongodb://localhost:27017/notes-app
-JWT_SECRET=your_jwt_secret
-REFRESH_TOKEN_SECRET=your_refresh_token_secret
