@@ -20,10 +20,7 @@ A modern full-stack personal productivity app featuring sticky notes, to-do list
 - 🎞️ Smooth animations using **Framer Motion**
 
 ### 🛠️ Backend (Node.js + Express + MongoDB)
-- 🔐 JWT-based authentication and session handling
-- 👥 Role-based access control (student / faculty / admin)
 - 📁 Modular RESTful API for users, notes, tasks, and tracking
-- 🔒 Secure password encryption with **bcrypt**
 - ⚙️ Environment-based config with `.env`
 - 🧩 Scalable structure with clean architecture
 
@@ -41,14 +38,3 @@ A modern full-stack personal productivity app featuring sticky notes, to-do list
 | Deployment | Vercel (frontend), Render / Railway (backend) |
 
 ---
-
-##📦 Getting Started
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/yourusername/notes-app.git
-cd notes-app
-
----
-
