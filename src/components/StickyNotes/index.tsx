@@ -7,10 +7,19 @@ export function StickyNotes() {
   const { notes, addNote, updateNote, deleteNote } = useStickyNotes();
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
 
+  const noteColors = [
+    '#FEF3C7', // Yellow
+    '#DBEAFE', // Blue
+    '#D1FAE5', // Green
+    '#FDE2E7', // Pink
+    '#E0E7FF', // Indigo
+    '#F3E8FF', // Purple
+  ];
+
   const handleAddNote = () => {
     const newNote = {
       content: '',
-      color: '#FEF3C7',
+      color: noteColors[Math.floor(Math.random() * noteColors.length)],
       position: { 
         x: Math.random() * (window.innerWidth - 300), 
         y: Math.random() * (window.innerHeight - 200) + 100

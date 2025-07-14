@@ -30,7 +30,7 @@ const StickyNotes: React.FC = () => {
       content: 'New note...',
       color: randomColor,
       position: randomPosition,
-      size: { width: 250, height: 200 },
+      size: { width: 300, height: 200 },
     });
   };
 
@@ -75,7 +75,7 @@ const StickyNotes: React.FC = () => {
             onClick={handleAddNote}
             className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg flex items-center space-x-2 transition-colors"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-6 h-5" />
             <span>Add Note</span>
           </button>
         </div>

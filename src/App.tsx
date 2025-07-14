@@ -9,7 +9,7 @@ import { Calendar } from './components/Calendar';
 import { Whiteboard } from './components/Whiteboard';
 
 function App() {
-  const [currentView, setCurrentView] = useState<ViewMode>('todo');
+  const [currentView, setCurrentView] = useState<ViewMode>('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
@@ -21,8 +21,8 @@ function App() {
         return <StickyNotes />;
       case 'calendar':
         return <Calendar />;
-      case 'whiteboard':
-        return <Whiteboard />;
+      // case 'whiteboard':
+      //   return <Whiteboard />;
       default:
         return <TodoList />;
     }

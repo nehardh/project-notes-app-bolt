@@ -15,7 +15,7 @@ const navigation = [
   { id: 'todo' as const, name: 'Tasks', icon: CheckSquare },
   { id: 'notes' as const, name: 'Notes', icon: StickyNote },
   { id: 'calendar' as const, name: 'Calendar', icon: Calendar },
-  { id: 'whiteboard' as const, name: 'Whiteboard', icon: Palette },
+  //{ id: 'whiteboard' as const, name: 'Whiteboard', icon: Palette },
 ];
 
 export function Sidebar({ 

@@ -1,299 +1,199 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { PenTool, Eraser, Square, Circle, Type, Download, Trash2, Undo, Redo } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Palette, Eraser, Download, Trash2 } from 'lucide-react';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useStickyNotes } from '../../hooks/useStickyNotes';
+import { DrawingPath, WhiteboardState } from '../../types';
+import { StickyNoteItem } from '../StickyNotes/StickyNoteItem';
+import { FloatingActionButton } from '../UI/FloatingActionButton';
+import { ComponentPalette } from '../UI/ComponentPalette';
+import { DraggableComponent } from '../UI/DraggableComponent';
 
-interface DrawingTool {
-  type: 'pen' | 'eraser' | 'rectangle' | 'circle' | 'text';
-  color: string;
-  size: number;
-}
-
-const Whiteboard: React.FC = () => {
+export function Whiteboard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [tool, setTool] = useState<DrawingTool>({
-    type: 'pen',
-    color: '#000000',
-    size: 2,
+  const [currentPath, setCurrentPath] = useState<{ x: number; y: number }[]>([]);
+  const [brushColor, setBrushColor] = useState('#000000');
+  const [brushSize, setBrushSize] = useState(2);
+  const [tool, setTool] = useState<'brush' | 'eraser'>('brush');
+
+  const [whiteboardState, setWhiteboardState] = useLocalStorage<WhiteboardState>('whiteboard', {
+    paths: [],
+    notes: []
   });
-  const [history, setHistory] = useState<ImageData[]>([]);
-  const [historyStep, setHistoryStep] = useState(-1);
+
+  const { notes: allNotes, addNote, updateNote, deleteNote } = useStickyNotes();
+  const whiteboardNotes = allNotes.filter(note => whiteboardState.notes.some(wNote => wNote.id === note.id));
+
+  const [droppedComponents, setDroppedComponents] = useState<
+    { id: string; type: string; position: { x: number; y: number } }[]
+  >([]);
 
   const colors = [
-    '#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff',
-    '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#800080',
+    '#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', 
+    '#FF00FF', '#00FFFF', '#FFA500', '#800080', '#008000'
   ];
 
-  const sizes = [1, 2, 4, 8, 16];
-
   useEffect(() => {
+    redrawCanvas();
+  }, [whiteboardState.paths]);
+
+  const redrawCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
-    const resizeCanvas = () => {
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
-      
-      // Set default styles
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    whiteboardState.paths.forEach(path => {
+      if (path.points.length < 2) return;
+
+      ctx.strokeStyle = path.color;
+      ctx.lineWidth = path.width;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Save initial state
-      saveState();
-    };
-
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    return () => window.removeEventListener('resize', resizeCanvas);
-  }, []);
-
-  const saveState = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    setHistory(prev => {
-      const newHistory = prev.slice(0, historyStep + 1);
-      newHistory.push(imageData);
-      return newHistory.slice(-50); // Keep last 50 states
+      ctx.beginPath();
+      ctx.moveTo(path.points[0].x, path.points[0].y);
+      for (let i = 1; i < path.points.length; i++) {
+        ctx.lineTo(path.points[i].x, path.points[i].y);
+      }
+      ctx.stroke();
     });
-    setHistoryStep(prev => Math.min(prev + 1, 49));
-  };
-
-  const undo = () => {
-    if (historyStep > 0) {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      setHistoryStep(prev => prev - 1);
-      ctx.putImageData(history[historyStep - 1], 0, 0);
-    }
-  };
-
-  const redo = () => {
-    if (historyStep < history.length - 1) {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      setHistoryStep(prev => prev + 1);
-      ctx.putImageData(history[historyStep + 1], 0, 0);
-    }
   };
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    setIsDrawing(true);
-    
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvasRef.current!.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-
-    ctx.beginPath();
-    ctx.moveTo(x, y);
+    setIsDrawing(true);
+    setCurrentPath([{ x, y }]);
   };
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const rect = canvas.getBoundingClientRect();
+    const rect = canvasRef.current!.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    const newPath = [...currentPath, { x, y }];
+    setCurrentPath(newPath);
 
-    if (tool.type === 'pen') {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = tool.color;
-      ctx.lineWidth = tool.size;
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    } else if (tool.type === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.lineWidth = tool.size * 2;
-      ctx.lineTo(x, y);
+    const ctx = canvasRef.current!.getContext('2d');
+    if (!ctx) return;
+    ctx.strokeStyle = tool === 'eraser' ? '#FFFFFF' : brushColor;
+    ctx.lineWidth = tool === 'eraser' ? brushSize * 3 : brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if (newPath.length >= 2) {
+      const last = newPath[newPath.length - 2];
+      const curr = newPath[newPath.length - 1];
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(curr.x, curr.y);
       ctx.stroke();
     }
   };
 
   const stopDrawing = () => {
-    if (isDrawing) {
-      setIsDrawing(false);
-      saveState();
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    if (currentPath.length > 1) {
+      const newPath: DrawingPath = {
+        id: crypto.randomUUID(),
+        points: currentPath,
+        color: tool === 'eraser' ? '#FFFFFF' : brushColor,
+        width: tool === 'eraser' ? brushSize * 3 : brushSize,
+      };
+      setWhiteboardState(prev => ({ ...prev, paths: [...prev.paths, newPath] }));
     }
+    setCurrentPath([]);
   };
 
   const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    if (confirm('Are you sure you want to clear the whiteboard?')) {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      saveState();
-    }
+    setWhiteboardState(prev => ({ ...prev, paths: [] }));
   };
 
   const downloadCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const link = document.createElement('a');
-    link.download = `whiteboard-${new Date().toISOString().slice(0, 10)}.png`;
+    link.download = 'whiteboard.png';
     link.href = canvas.toDataURL();
     link.click();
   };
 
+  const addNoteToWhiteboard = () => {
+    const newNote = {
+      content: '',
+      color: '#FEF3C7',
+      position: { x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 },
+      size: { width: 200, height: 150 },
+    };
+    const note = addNote(newNote);
+    setWhiteboardState(prev => ({ ...prev, notes: [...prev.notes, { id: note.id, x: newNote.position.x, y: newNote.position.y }] }));
+  };
+
+  const handleNoteDelete = (noteId: string) => {
+    deleteNote(noteId);
+    setWhiteboardState(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== noteId) }));
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('component/type');
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setDroppedComponents(prev => [...prev, { id: crypto.randomUUID(), type, position: { x, y } }]);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+
   return (
-    <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-      {/* Toolbar */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
-          {/* Drawing Tools */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setTool(prev => ({ ...prev, type: 'pen' }))}
-              className={`p-3 rounded-lg transition-colors ${
-                tool.type === 'pen'
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <PenTool className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setTool(prev => ({ ...prev, type: 'eraser' }))}
-              className={`p-3 rounded-lg transition-colors ${
-                tool.type === 'eraser'
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <Eraser className="w-5 h-5" />
-            </button>
+    <div className="relative h-screen overflow-hidden bg-white dark:bg-gray-900" onDrop={handleDrop} onDragOver={handleDragOver}>
+      {/* Tools */}
+      <div className="absolute top-4 left-4 z-30 space-y-4">
+        <ComponentPalette />
+        <div className="bg-white p-4 rounded-lg shadow-lg space-y-4">
+          <div className="flex space-x-2">
+            <button onClick={() => setTool('brush')} className={`p-2 rounded-lg ${tool === 'brush' ? 'bg-indigo-200' : 'bg-gray-100'}`}><Palette /></button>
+            <button onClick={() => setTool('eraser')} className={`p-2 rounded-lg ${tool === 'eraser' ? 'bg-indigo-200' : 'bg-gray-100'}`}><Eraser /></button>
           </div>
-
-          {/* Colors */}
-          <div className="flex items-center space-x-2">
-            {colors.map(color => (
-              <button
-                key={color}
-                onClick={() => setTool(prev => ({ ...prev, color }))}
-                className={`w-8 h-8 rounded border-2 hover:scale-110 transition-transform ${
-                  color === tool.color ? 'border-gray-900 dark:border-white' : 'border-gray-300 dark:border-gray-600'
-                }`}
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </div>
-
-          {/* Brush Size */}
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600 dark:text-gray-300">Size:</span>
-            {sizes.map(size => (
-              <button
-                key={size}
-                onClick={() => setTool(prev => ({ ...prev, size }))}
-                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center hover:scale-110 transition-transform ${
-                  size === tool.size 
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
-                    : 'border-gray-300 dark:border-gray-600'
-                }`}
-              >
-                <div 
-                  className="rounded-full bg-gray-800 dark:bg-gray-200"
-                  style={{ 
-                    width: Math.min(size * 2, 16), 
-                    height: Math.min(size * 2, 16) 
-                  }}
-                />
-              </button>
-            ))}
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={undo}
-              disabled={historyStep <= 0}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Undo className="w-5 h-5" />
-            </button>
-            <button
-              onClick={redo}
-              disabled={historyStep >= history.length - 1}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Redo className="w-5 h-5" />
-            </button>
-            <button
-              onClick={downloadCanvas}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              <Download className="w-5 h-5" />
-            </button>
-            <button
-              onClick={clearCanvas}
-              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
-          </div>
+          {tool === 'brush' && (
+            <div className="grid grid-cols-5 gap-2">
+              {colors.map(color => (
+                <button key={color} onClick={() => setBrushColor(color)} className="w-6 h-6 rounded border" style={{ backgroundColor: color }} />
+              ))}
+            </div>
+          )}
+          <input type="range" min={1} max={20} value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} />
+          <button onClick={clearCanvas} className="w-full text-red-600">Clear</button>
+          <button onClick={downloadCanvas} className="w-full text-gray-600">Download</button>
         </div>
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 p-4">
-        <div className="w-full h-full bg-white dark:bg-gray-100 rounded-lg shadow-sm overflow-hidden">
-          <canvas
-            ref={canvasRef}
-            className="w-full h-full cursor-crosshair"
-            onMouseDown={startDrawing}
-            onMouseMove={draw}
-            onMouseUp={stopDrawing}
-            onMouseLeave={stopDrawing}
-          />
-        </div>
-      </div>
+      <canvas
+        ref={canvasRef}
+        width={window.innerWidth}
+        height={window.innerHeight}
+        className="absolute inset-0 cursor-crosshair"
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseLeave={stopDrawing}
+      />
 
-      {/* Instructions */}
-      <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Click and drag to draw • Use the eraser to remove parts • Download your creation when finished
-          </p>
-        </div>
-      </div>
+      {/* Sticky Notes */}
+      {whiteboardNotes.map((note) => (
+        <StickyNoteItem key={note.id} note={note} onUpdate={updateNote} onDelete={handleNoteDelete} />
+      ))}
+
+      {/* Dropped Components */}
+      {droppedComponents.map((comp) => (
+        <DraggableComponent key={comp.id} type={comp.type} position={comp.position} />
+      ))}
+
+      <FloatingActionButton onClick={addNoteToWhiteboard} />
     </div>
   );
-};
-
-export default Whiteboard;
+}

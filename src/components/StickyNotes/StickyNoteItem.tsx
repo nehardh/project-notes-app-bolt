@@ -20,10 +20,10 @@ const noteColors = [
   '#F3E8FF', // Purple
 ];
 
-export function StickyNoteItem({ 
-  note, 
-  onUpdate, 
-  onDelete, 
+export function StickyNoteItem({
+  note,
+  onUpdate,
+  onDelete,
   isDragging = false,
   onDragStart,
   onDragEnd
@@ -31,8 +31,25 @@ export function StickyNoteItem({
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
-  const noteRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 🔁 Auto-resize textarea and note
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      const el = textareaRef.current;
+      el.style.height = 'auto';
+      const newHeight = Math.max(el.scrollHeight + 30, 100); // Min height: 100px
+
+      el.style.height = `${newHeight - 30}px`;
+
+      // Update note height only if different
+      if (note.size.height !== newHeight) {
+        onUpdate(note.id, {
+          size: { ...note.size, height: newHeight }
+        });
+      }
+    }
+  }, [content, isEditing]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -90,11 +107,9 @@ export function StickyNoteItem({
 
   return (
     <div
-      ref={noteRef}
-      className={`
-        absolute cursor-move select-none transition-shadow duration-200
-        ${isDragging ? 'shadow-xl z-50' : 'shadow-lg hover:shadow-xl'}
-      `}
+      className={`absolute cursor-move transition-shadow duration-200 ${
+        isDragging ? 'shadow-xl z-50' : 'shadow-lg hover:shadow-xl'
+      }`}
       style={{
         left: note.position.x,
         top: note.position.y,
@@ -104,22 +119,21 @@ export function StickyNoteItem({
       }}
       onMouseDown={handleMouseDown}
     >
-      <div className="h-full flex flex-col rounded-lg overflow-hidden border-2 border-yellow-300">
+      <div className="h-full flex flex-col overflow-hidden border-2 border-black">
         {/* Header */}
         <div className="flex items-center justify-between p-2 bg-black bg-opacity-5 drag-handle">
           <Move className="w-4 h-4 text-gray-600 drag-handle" />
           <div className="flex items-center space-x-1">
-            {/* Color picker */}
-            <div className="flex space-x-1">
-              {noteColors.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => onUpdate(note.id, { color })}
-                  className={`w-3 h-3 rounded-full border border-gray-400 ${note.color === color ? 'ring-2 ring-gray-600' : ''}`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-            </div>
+            {noteColors.map((color) => (
+              <button
+                key={color}
+                onClick={() => onUpdate(note.id, { color })}
+                className={`w-4 h-4 rounded border border-gray-400 ${
+                  note.color === color ? 'ring-2 ring-gray-600' : ''
+                }`}
+                style={{ backgroundColor: color }}
+              />
+            ))}
             <button
               onClick={() => onDelete(note.id)}
               className="p-1 hover:bg-black hover:bg-opacity-10 rounded transition-colors"
@@ -130,31 +144,29 @@ export function StickyNoteItem({
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-3">
+        <div className="flex-1 p-3 overflow-y-auto">
           {isEditing ? (
-            <div className="h-full flex flex-col">
-              <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="flex-1 w-full bg-transparent border-none outline-none resize-none text-sm text-gray-800 placeholder-gray-500"
-                placeholder="Type your note..."
-                onBlur={handleSave}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.shiftKey) {
-                    return;
-                  } else if (e.key === 'Enter') {
-                    handleSave();
-                  } else if (e.key === 'Escape') {
-                    handleCancel();
-                  }
-                }}
-              />
-            </div>
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full bg-transparent border-none outline-none resize-none text-sm text-gray-800 placeholder-gray-500"
+              placeholder="Type your note..."
+              onBlur={handleSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSave();
+                } else if (e.key === 'Escape') {
+                  handleCancel();
+                }
+              }}
+              style={{ minHeight: '50px', overflow: 'hidden' }}
+            />
           ) : (
             <div
               onClick={() => setIsEditing(true)}
-              className="h-full w-full text-sm text-gray-800 whitespace-pre-wrap break-words cursor-text"
+              className="text-sm text-gray-800 whitespace-pre-wrap break-words cursor-text"
             >
               {note.content || 'Click to edit...'}
             </div>
